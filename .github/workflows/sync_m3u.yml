@@ -1,1 +1,34 @@
+name: Senkronize GTV.m3u
 
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-m3u:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Depoyu klonla
+        uses: actions/checkout@v3
+
+      - name: Uzak .m3u dosyasını indir
+        run: |
+          curl -sSL \
+            https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u \
+            -o upstream.m3u
+
+      - name: Değişiklik var mı kontrol et ve güncelle
+        run: |
+          if ! cmp -s upstream.m3u gtv.m3u; then
+            echo "Fark tespit edildi, güncelliyorum…"
+            cp upstream.m3u gtv.m3u
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add gtv.m3u
+            git commit -m "📡 Otomatik: gtv.m3u dosyası güncellendi"
+            git push origin HEAD:main
+          else
+            echo "Değişiklik yok."
+          fi
