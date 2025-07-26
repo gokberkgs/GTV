@@ -1,60 +1,27 @@
-name: M3U Listesini Senkronize Et
+name: Sync M3U File
 
 on:
-  
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */6 * * *' # Her 6 saatte bir çalışır
+  workflow_dispatch: # Manuel tetikleme için
 
- 
-  workflow_dispatch:
-
-
-  sync-m3u-file:
-
+jobs:
+  sync-m3u:
     runs-on: ubuntu-latest
-
     steps:
-
-      - name: Depoyu Checkout Et
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Kaynak M3U Dosyasını İndir ve Güncelle
+      - name: Download Source M3U
         run: |
-          # Kaynak dosyanın URL'si
-          SOURCE_URL="https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u"
-          
-          # Hedef dosyanın adı
-          TARGET_FILE="gtv.m3u"
-          
-          # Kaynak dosyayı 'source.m3u' olarak indir
-          curl -L -o source.m3u "$SOURCE_URL"
-          
-          # Eğer indirme başarılı olduysa devam et
-          if [ $? -eq 0 ]; then
-            echo "Kaynak dosya başarıyla indirildi."
-            
-            # Eğer hedef dosya (gtv.m3u) varsa ve içerikleri aynıysa bir şey yapma
-            if [ -f "$TARGET_FILE" ] && cmp -s "$TARGET_FILE" "source.m3u"; then
-              echo "Dosyalar zaten senkronize. Değişiklik yok."
-            else
-              echo "Değişiklik tespit edildi. Dosya güncelleniyor."
-              # İndirilen yeni dosyayı hedef dosyanın üzerine yaz
-              mv source.m3u "$TARGET_FILE"
-            fi
-          else
-            echo "Kaynak dosya indirilemedi. İşlem iptal ediliyor."
-            exit 1
-          fi
+          curl -o gtv.m3u https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u
 
-      - name: Değişiklikleri Depoya Gönder
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Otomatik Güncelleme: M3U listesi senkronize edildi"
-          
-          file_pattern: gtv.m3u
-
-          branch: main
-          
-          commit_user_name: GitHub Actions Bot
-          commit_user_email: actions@github.com
-          commit_author: GitHub Actions Bot <actions@github.com>
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add gtv.m3u
+          git commit -m 'Update gtv.m3u from source' || echo "No changes to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
