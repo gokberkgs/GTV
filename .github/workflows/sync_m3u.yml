@@ -1,34 +1,60 @@
-name: Senkronize GTV.m3u
+name: M3U Listesini Senkronize Et
 
 on:
+  
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 */6 * * *'
+
+ 
   workflow_dispatch:
 
-jobs:
-  sync-m3u:
+
+  sync-m3u-file:
+
     runs-on: ubuntu-latest
 
     steps:
-      - name: Depoyu klonla
-        uses: actions/checkout@v3
 
-      - name: Uzak .m3u dosyasını indir
-        run: |
-          curl -sSL \
-            https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u \
-            -o upstream.m3u
+      - name: Depoyu Checkout Et
+        uses: actions/checkout@v4
 
-      - name: Değişiklik var mı kontrol et ve güncelle
+      - name: Kaynak M3U Dosyasını İndir ve Güncelle
         run: |
-          if ! cmp -s upstream.m3u gtv.m3u; then
-            echo "Fark tespit edildi, güncelliyorum…"
-            cp upstream.m3u gtv.m3u
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add gtv.m3u
-            git commit -m "📡 Otomatik: gtv.m3u dosyası güncellendi"
-            git push origin HEAD:main
+          # Kaynak dosyanın URL'si
+          SOURCE_URL="https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u"
+          
+          # Hedef dosyanın adı
+          TARGET_FILE="gtv.m3u"
+          
+          # Kaynak dosyayı 'source.m3u' olarak indir
+          curl -L -o source.m3u "$SOURCE_URL"
+          
+          # Eğer indirme başarılı olduysa devam et
+          if [ $? -eq 0 ]; then
+            echo "Kaynak dosya başarıyla indirildi."
+            
+            # Eğer hedef dosya (gtv.m3u) varsa ve içerikleri aynıysa bir şey yapma
+            if [ -f "$TARGET_FILE" ] && cmp -s "$TARGET_FILE" "source.m3u"; then
+              echo "Dosyalar zaten senkronize. Değişiklik yok."
+            else
+              echo "Değişiklik tespit edildi. Dosya güncelleniyor."
+              # İndirilen yeni dosyayı hedef dosyanın üzerine yaz
+              mv source.m3u "$TARGET_FILE"
+            fi
           else
-            echo "Değişiklik yok."
+            echo "Kaynak dosya indirilemedi. İşlem iptal ediliyor."
+            exit 1
           fi
+
+      - name: Değişiklikleri Depoya Gönder
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Otomatik Güncelleme: M3U listesi senkronize edildi"
+          
+          file_pattern: gtv.m3u
+
+          branch: main
+          
+          commit_user_name: GitHub Actions Bot
+          commit_user_email: actions@github.com
+          commit_author: GitHub Actions Bot <actions@github.com>
