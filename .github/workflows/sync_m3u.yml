@@ -2,8 +2,8 @@ name: Sync M3U File
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Her 6 saatte bir çalışır
-  workflow_dispatch: # Manuel tetikleme için
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   sync-m3u:
@@ -11,17 +11,30 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
       - name: Download Source M3U
         run: |
-          curl -o gtv.m3u https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u
+          curl -f -o temp.m3u https://raw.githubusercontent.com/atakan1983/tvepic/refs/heads/main/mehmet_guncel.m3u
+          grep -q "#EXTM3U" temp.m3u || { echo "Error: Invalid M3U file"; exit 1; }
+
+      - name: Sort M3U and Update Listem
+        run: |
+          python sort_m3u.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add gtv.m3u
-          git commit -m 'Update gtv.m3u from source' || echo "No changes to commit"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git add gtv.m3u listem
+          git commit -m 'Update gtv.m3u and listem with sorted and filtered channels' || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/gokberkgs/GTV.git
